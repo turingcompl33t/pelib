@@ -7,6 +7,7 @@
 #include <string>
 #include <iostream>
 
+#include "Utility.h"
 #include "PeLib.h"
 
 /* ----------------------------------------------------------------------------
@@ -18,6 +19,11 @@ PeParser::PeParser(const std::string& file_path)
 	: file_path{ file_path }
 {
 	DbgPrint("PeParser initialized");
+
+	DosHeader      = { 0 };
+	NtHeaders      = { 0 };
+	FileHeader     = { 0 };
+	OptionalHeader = { 0 };
 }
 
 PELIB_API 
@@ -47,7 +53,7 @@ PeParser::parse()
 		GENERIC_READ,
 		FILE_SHARE_READ,
 		nullptr,
-		OPEN_ALWAYS,
+		OPEN_EXISTING,
 		FILE_ATTRIBUTE_NORMAL,
 		nullptr
 	);
@@ -91,6 +97,8 @@ PeParser::parse()
 	parse_nt_headers(pFileBuffer);
 	parse_file_header(pFileBuffer);
 	parse_optional_header(pFileBuffer);
+	parse_data_directory(pFileBuffer);
+	parse_section_headers(pFileBuffer);
 
 CLEANUP:
 	switch (rollback)
@@ -155,6 +163,116 @@ PeParser::get_characteristics()
 	push_if_flag_set(characteristics, flags, IMAGE_FILE_DLL, "IMAGE_FILE_DLL");
 	push_if_flag_set(characteristics, flags, IMAGE_FILE_UP_SYSTEM_ONLY, "IMAGE_FILE_UP_SYSTEM_ONLY");
 	push_if_flag_set(characteristics, flags, IMAGE_FILE_BYTES_REVERSED_HI, "IMAGE_FILE_BYTES_REVERSED_HI");
+
+	return characteristics;
+}
+
+// get_section_headers
+// Initialize a vector of SectionHeaders and return pointer to client.
+//
+// Returns a vector of SectionHeader objects.
+PELIB_API std::unique_ptr<std::vector<SectionHeader_t>> 
+PeParser::get_section_headers()
+{
+	auto headers = std::make_unique<std::vector<SectionHeader_t>>();
+
+	for (auto& h : SectionHeaders)
+	{
+		headers.get()->emplace_back(
+			h.Name,
+			h.VirtualSize,
+			h.VirtualAddress,
+			h.SizeOfRawData,
+			h.PointerToRawData,
+			h.PointerToRelocations,
+			h.PointerToLinenumbers,
+			h.NumberOfRelocations,
+			h.NumberOfLinenumbers,
+			h.Characteristics
+		);
+	}
+
+	return headers;
+}
+
+// get_section_header_by_name
+// Get the section header corresponding to specified name, if it exists.
+//
+// Arguments
+//	name - ASCII string representation of section name.
+//
+// Returns a pointer to initialized SectionHeader structure.
+PELIB_API std::unique_ptr<SectionHeader_t> 
+PeParser::get_section_header_by_name(const char name[])
+{
+	for (auto& h : SectionHeaders)
+	{
+		if (0 == memcmp(name, h.Name, IMAGE_SIZEOF_SHORT_NAME))
+		{
+			return std::make_unique<SectionHeader_t>(
+				h.Name,
+				h.VirtualSize,
+				h.VirtualAddress,
+				h.SizeOfRawData,
+				h.PointerToRawData,
+				h.PointerToRelocations,
+				h.PointerToLinenumbers,
+				h.NumberOfRelocations,
+				h.NumberOfLinenumbers,
+				h.Characteristics
+				);
+		}
+	}
+
+	return nullptr;
+}
+
+// get_section_characteristics
+// Interpret the characteristics of a section header.
+// 
+// Arguments
+//	flags - 32-bit value representing section characteristics
+//
+// Returns a vector of strings representing characteristics present.
+PELIB_API std::unique_ptr<std::vector<std::string>> 
+PeParser::get_section_characteristics(unsigned long flags)
+{
+	auto characteristics = std::make_unique<std::vector<std::string>>();
+
+	push_if_flag_set(characteristics, flags, IMAGE_SCN_TYPE_NO_PAD, "IMAGE_SCN_TYPE_NO_PAD");
+	push_if_flag_set(characteristics, flags, IMAGE_SCN_CNT_CODE, "IMAGE_SCN_CNT_CODE");
+	push_if_flag_set(characteristics, flags, IMAGE_SCN_CNT_INITIALIZED_DATA, "IMAGE_SCN_CNT_INITIALIZED_DATA");
+	push_if_flag_set(characteristics, flags, IMAGE_SCN_CNT_UNINITIALIZED_DATA, "IMAGE_SCN_CNT_UNINITIALIZED_DATA");
+	push_if_flag_set(characteristics, flags, IMAGE_SCN_LNK_OTHER, "IMAGE_SCN_LNK_OTHER");
+	push_if_flag_set(characteristics, flags, IMAGE_SCN_LNK_INFO, "IMAGE_SCN_LNK_INFO");
+	push_if_flag_set(characteristics, flags, IMAGE_SCN_LNK_REMOVE, "IMAGE_SCN_LNK_REMOVE");
+	push_if_flag_set(characteristics, flags, IMAGE_SCN_NO_DEFER_SPEC_EXC, "IMAGE_SCN_NO_DEFER_SPEC_EXC");
+	push_if_flag_set(characteristics, flags, IMAGE_SCN_GPREL, "IMAGE_SCN_GPREL");
+	push_if_flag_set(characteristics, flags, IMAGE_SCN_MEM_PURGEABLE, "IMAGE_SCN_MEM_PURGEABLE");
+	push_if_flag_set(characteristics, flags, IMAGE_SCN_MEM_LOCKED, "IMAGE_SCN_MEM_LOCKED");
+	push_if_flag_set(characteristics, flags, IMAGE_SCN_MEM_PRELOAD, "IMAGE_SCN_MEM_PRELOAD");
+	push_if_flag_set(characteristics, flags, IMAGE_SCN_ALIGN_1BYTES, "IMAGE_SCN_ALIGN_1BYTES");
+	push_if_flag_set(characteristics, flags, IMAGE_SCN_ALIGN_2BYTES, "IMAGE_SCN_ALIGN_2BYTES");
+	push_if_flag_set(characteristics, flags, IMAGE_SCN_ALIGN_4BYTES, "IMAGE_SCN_ALIGN_4BYTES");
+	push_if_flag_set(characteristics, flags, IMAGE_SCN_ALIGN_8BYTES, "IMAGE_SCN_ALIGN_8BYTES");
+	push_if_flag_set(characteristics, flags, IMAGE_SCN_ALIGN_16BYTES, "IMAGE_SCN_ALIGN_16BYTES");
+	push_if_flag_set(characteristics, flags, IMAGE_SCN_ALIGN_32BYTES, "IMAGE_SCN_ALIGN_32BYTES");
+	push_if_flag_set(characteristics, flags, IMAGE_SCN_ALIGN_64BYTES, "IMAGE_SCN_ALIGN_64BYTES");
+	push_if_flag_set(characteristics, flags, IMAGE_SCN_ALIGN_128BYTES, "IMAGE_SCN_ALIGN_128BYTES");
+	push_if_flag_set(characteristics, flags, IMAGE_SCN_ALIGN_256BYTES, "IMAGE_SCN_ALIGN_256BYTES");
+	push_if_flag_set(characteristics, flags, IMAGE_SCN_ALIGN_512BYTES, "IMAGE_SCN_ALIGN_512BYTES");
+	push_if_flag_set(characteristics, flags, IMAGE_SCN_ALIGN_1024BYTES, "IMAGE_SCN_ALIGN_1024BYTES");
+	push_if_flag_set(characteristics, flags, IMAGE_SCN_ALIGN_2048BYTES, "IMAGE_SCN_ALIGN_2048BYTES");
+	push_if_flag_set(characteristics, flags, IMAGE_SCN_ALIGN_4096BYTES, "IMAGE_SCN_ALIGN_4096BYTES");
+	push_if_flag_set(characteristics, flags, IMAGE_SCN_ALIGN_8192BYTES, "IMAGE_SCN_ALIGN_8192BYTES");
+	push_if_flag_set(characteristics, flags, IMAGE_SCN_LNK_NRELOC_OVFL, "IMAGE_SCN_LNK_NRELOC_OVFL");
+	push_if_flag_set(characteristics, flags, IMAGE_SCN_MEM_DISCARDABLE, "IMAGE_SCN_MEM_DISCARDABLE");
+	push_if_flag_set(characteristics, flags, IMAGE_SCN_MEM_NOT_CACHED, "IMAGE_SCN_MEM_NOT_CACHED");
+	push_if_flag_set(characteristics, flags, IMAGE_SCN_MEM_NOT_PAGED, "IMAGE_SCN_MEM_NOT_PAGED");
+	push_if_flag_set(characteristics, flags, IMAGE_SCN_MEM_SHARED, "IMAGE_SCN_MEM_SHARED");
+	push_if_flag_set(characteristics, flags, IMAGE_SCN_MEM_EXECUTE, "IMAGE_SCN_MEM_EXECUTE");
+	push_if_flag_set(characteristics, flags, IMAGE_SCN_MEM_READ, "IMAGE_SCN_MEM_READ");
+	push_if_flag_set(characteristics, flags, IMAGE_SCN_MEM_WRITE, "IMAGE_SCN_MEM_WRITE");
 
 	return characteristics;
 }
@@ -263,35 +381,35 @@ void PeParser::parse_optional_header32(FileBuffer& buffer)
 
 	auto header = reinterpret_cast<PIMAGE_OPTIONAL_HEADER32>(&pBase);
 
-	OptionalHeader.Magic = header->Magic;
-	OptionalHeader.MajorLinkerVersion = header->MajorLinkerVersion;
-	OptionalHeader.MinorLinkerVersion = header->MinorLinkerVersion;
-	OptionalHeader.SizeOfCode = header->SizeOfCode;
-	OptionalHeader.SizeOfInitializedData = header->SizeOfInitializedData;
-	OptionalHeader.SizeOfUninitializedData = header->SizeOfUninitializedData;
-	OptionalHeader.AddressOfEntryPoint = header->AddressOfEntryPoint;
-	OptionalHeader.BaseOfCode = header->BaseOfCode;
-	OptionalHeader.ImageBase = header->ImageBase;
-	OptionalHeader.SectionAlignment = header->SectionAlignment;
-	OptionalHeader.FileAlignment = header->FileAlignment;
+	OptionalHeader.Magic                       = header->Magic;
+	OptionalHeader.MajorLinkerVersion          = header->MajorLinkerVersion;
+	OptionalHeader.MinorLinkerVersion          = header->MinorLinkerVersion;
+	OptionalHeader.SizeOfCode                  = header->SizeOfCode;
+	OptionalHeader.SizeOfInitializedData       = header->SizeOfInitializedData;
+	OptionalHeader.SizeOfUninitializedData     = header->SizeOfUninitializedData;
+	OptionalHeader.AddressOfEntryPoint         = header->AddressOfEntryPoint;
+	OptionalHeader.BaseOfCode                  = header->BaseOfCode;
+	OptionalHeader.ImageBase                   = header->ImageBase;
+	OptionalHeader.SectionAlignment            = header->SectionAlignment;
+	OptionalHeader.FileAlignment               = header->FileAlignment;
 	OptionalHeader.MajorOperatingSystemVersion = header->MajorOperatingSystemVersion;
 	OptionalHeader.MinorOperatingSystemVersion = header->MinorOperatingSystemVersion;
-	OptionalHeader.MajorImageVersion = header->MajorImageVersion;
-	OptionalHeader.MinorImageVersion = header->MinorImageVersion;
-	OptionalHeader.MajorSubsystemVersion = header->MajorSubsystemVersion;
-	OptionalHeader.MinorSubsystemVersion = header->MinorSubsystemVersion;
-	OptionalHeader.Win32VersionValue = header->Win32VersionValue;
-	OptionalHeader.SizeOfImage = header->SizeOfImage;
-	OptionalHeader.SizeOfHeaders = header->SizeOfHeaders;
-	OptionalHeader.CheckSum = header->CheckSum;
-	OptionalHeader.Subsystem = header->Subsystem;
-	OptionalHeader.DllCharacteristics = header->DllCharacteristics;
-	OptionalHeader.SizeOfStackReserve = header->SizeOfStackReserve;
-	OptionalHeader.SizeOfStackCommit = header->SizeOfStackCommit;
-	OptionalHeader.SizeOfHeapReserve = header->SizeOfHeapReserve;
-	OptionalHeader.SizeOfHeapCommit = header->SizeOfHeapCommit;
-	OptionalHeader.LoaderFlags = header->LoaderFlags;
-	OptionalHeader.NumberOfRvaAndSizes = header->NumberOfRvaAndSizes;
+	OptionalHeader.MajorImageVersion           = header->MajorImageVersion;
+	OptionalHeader.MinorImageVersion           = header->MinorImageVersion;
+	OptionalHeader.MajorSubsystemVersion       = header->MajorSubsystemVersion;
+	OptionalHeader.MinorSubsystemVersion       = header->MinorSubsystemVersion;
+	OptionalHeader.Win32VersionValue           = header->Win32VersionValue;
+	OptionalHeader.SizeOfImage                 = header->SizeOfImage;
+	OptionalHeader.SizeOfHeaders               = header->SizeOfHeaders;
+	OptionalHeader.CheckSum                    = header->CheckSum;
+	OptionalHeader.Subsystem                   = header->Subsystem;
+	OptionalHeader.DllCharacteristics          = header->DllCharacteristics;
+	OptionalHeader.SizeOfStackReserve          = header->SizeOfStackReserve;
+	OptionalHeader.SizeOfStackCommit           = header->SizeOfStackCommit;
+	OptionalHeader.SizeOfHeapReserve           = header->SizeOfHeapReserve;
+	OptionalHeader.SizeOfHeapCommit            = header->SizeOfHeapCommit;
+	OptionalHeader.LoaderFlags                 = header->LoaderFlags;
+	OptionalHeader.NumberOfRvaAndSizes         = header->NumberOfRvaAndSizes;
 }
 
 // parse_optional_header64
@@ -308,35 +426,91 @@ void PeParser::parse_optional_header64(FileBuffer& buffer)
 
 	auto header = reinterpret_cast<PIMAGE_OPTIONAL_HEADER64>(&pBase);
 
-	OptionalHeader.Magic = header->Magic;
-	OptionalHeader.MajorLinkerVersion = header->MajorLinkerVersion;
-	OptionalHeader.MinorLinkerVersion = header->MinorLinkerVersion;
-	OptionalHeader.SizeOfCode = header->SizeOfCode;
-	OptionalHeader.SizeOfInitializedData = header->SizeOfInitializedData;
-	OptionalHeader.SizeOfUninitializedData = header->SizeOfUninitializedData;
-	OptionalHeader.AddressOfEntryPoint = header->AddressOfEntryPoint;
-	OptionalHeader.BaseOfCode = header->BaseOfCode;
-	OptionalHeader.ImageBase = header->ImageBase;
-	OptionalHeader.SectionAlignment = header->SectionAlignment;
-	OptionalHeader.FileAlignment = header->FileAlignment;
+	OptionalHeader.Magic                       = header->Magic;
+	OptionalHeader.MajorLinkerVersion          = header->MajorLinkerVersion;
+	OptionalHeader.MinorLinkerVersion          = header->MinorLinkerVersion;
+	OptionalHeader.SizeOfCode                  = header->SizeOfCode;
+	OptionalHeader.SizeOfInitializedData       = header->SizeOfInitializedData;
+	OptionalHeader.SizeOfUninitializedData     = header->SizeOfUninitializedData;
+	OptionalHeader.AddressOfEntryPoint         = header->AddressOfEntryPoint;
+	OptionalHeader.BaseOfCode                  = header->BaseOfCode;
+	OptionalHeader.ImageBase                   = header->ImageBase;
+	OptionalHeader.SectionAlignment            = header->SectionAlignment;
+	OptionalHeader.FileAlignment               = header->FileAlignment;
 	OptionalHeader.MajorOperatingSystemVersion = header->MajorOperatingSystemVersion;
 	OptionalHeader.MinorOperatingSystemVersion = header->MinorOperatingSystemVersion;
-	OptionalHeader.MajorImageVersion = header->MajorImageVersion;
-	OptionalHeader.MinorImageVersion = header->MinorImageVersion;
-	OptionalHeader.MajorSubsystemVersion = header->MajorSubsystemVersion;
-	OptionalHeader.MinorSubsystemVersion = header->MinorSubsystemVersion;
-	OptionalHeader.Win32VersionValue = header->Win32VersionValue;
-	OptionalHeader.SizeOfImage = header->SizeOfImage;
-	OptionalHeader.SizeOfHeaders = header->SizeOfHeaders;
-	OptionalHeader.CheckSum = header->CheckSum;
-	OptionalHeader.Subsystem = header->Subsystem;
-	OptionalHeader.DllCharacteristics = header->DllCharacteristics;
-	OptionalHeader.SizeOfStackReserve = header->SizeOfStackReserve;
-	OptionalHeader.SizeOfStackCommit = header->SizeOfStackCommit;
-	OptionalHeader.SizeOfHeapReserve = header->SizeOfHeapReserve;
-	OptionalHeader.SizeOfHeapCommit = header->SizeOfHeapCommit;
-	OptionalHeader.LoaderFlags = header->LoaderFlags;
-	OptionalHeader.NumberOfRvaAndSizes = header->NumberOfRvaAndSizes;
+	OptionalHeader.MajorImageVersion           = header->MajorImageVersion;
+	OptionalHeader.MinorImageVersion           = header->MinorImageVersion;
+	OptionalHeader.MajorSubsystemVersion       = header->MajorSubsystemVersion;
+	OptionalHeader.MinorSubsystemVersion       = header->MinorSubsystemVersion;
+	OptionalHeader.Win32VersionValue           = header->Win32VersionValue;
+	OptionalHeader.SizeOfImage                 = header->SizeOfImage;
+	OptionalHeader.SizeOfHeaders               = header->SizeOfHeaders;
+	OptionalHeader.CheckSum                    = header->CheckSum;
+	OptionalHeader.Subsystem                   = header->Subsystem;
+	OptionalHeader.DllCharacteristics          = header->DllCharacteristics;
+	OptionalHeader.SizeOfStackReserve          = header->SizeOfStackReserve;
+	OptionalHeader.SizeOfStackCommit           = header->SizeOfStackCommit;
+	OptionalHeader.SizeOfHeapReserve           = header->SizeOfHeapReserve;
+	OptionalHeader.SizeOfHeapCommit            = header->SizeOfHeapCommit;
+	OptionalHeader.LoaderFlags                 = header->LoaderFlags;
+	OptionalHeader.NumberOfRvaAndSizes         = header->NumberOfRvaAndSizes;
+}
+
+// parse_data_directory
+// Parse the data directory metadata for all entries.
+//
+// Arguments:
+//	buffer - image file buffer
+void PeParser::parse_data_directory(FileBuffer& buffer)
+{
+	// compute the offset to the first data directory entry
+	auto base = buffer.get()
+		+ DosHeader.e_lfanew
+		+ sizeof(unsigned long)
+		+ sizeof(IMAGE_FILE_HEADER)
+		+ FileHeader.SizeOfOptionalHeader
+		- sizeof(IMAGE_DATA_DIRECTORY) * IMAGE_NUMBEROF_DIRECTORY_ENTRIES;
+
+	// populate the internal data directory metadata
+	for (auto i = 0; i < IMAGE_NUMBEROF_DIRECTORY_ENTRIES; ++i)
+	{
+		auto dir = reinterpret_cast<PIMAGE_DATA_DIRECTORY>(base + sizeof(IMAGE_DATA_DIRECTORY)*i);
+		DataDirectory[i].VirtualAddress = dir->VirtualAddress;
+		DataDirectory[i].Size           = dir->Size;
+	}
+}
+
+// parse_section_headers
+// Parse the image section headers.
+//
+// Arguments:
+//	buffer - image file buffer
+void PeParser::parse_section_headers(FileBuffer& buffer)
+{
+	// compute offset to first section header
+	auto base = buffer.get()
+		+ DosHeader.e_lfanew
+		+ sizeof(unsigned long)
+		+ sizeof(IMAGE_FILE_HEADER)
+		+ FileHeader.SizeOfOptionalHeader;
+
+	for (auto i = 0; i < FileHeader.NumberOfSections; ++i)
+	{
+		auto header = reinterpret_cast<PIMAGE_SECTION_HEADER>(base + sizeof(IMAGE_SECTION_HEADER) * i);
+		SectionHeaders.emplace_back(
+			header->Name,
+			header->Misc.VirtualSize,
+			header->VirtualAddress,
+			header->SizeOfRawData,
+			header->PointerToRawData,
+			header->PointerToRelocations,
+			header->PointerToLinenumbers,
+			header->NumberOfRelocations,
+			header->NumberOfLinenumbers,
+			header->Characteristics
+			);
+	}
 }
 
 /* ----------------------------------------------------------------------------
@@ -352,7 +526,7 @@ void PeParser::parse_optional_header64(FileBuffer& buffer)
 //	flags - total flag set
 //	mask  - flag set to test against
 //	str   - string to push if flag present
-void push_if_flag_set(
+inline void push_if_flag_set(
 	std::unique_ptr<std::vector<std::string>>& vec,
 	unsigned short flags,
 	unsigned short mask,

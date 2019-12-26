@@ -21,8 +21,8 @@ int main(int argc, char* argv[])
 		return STATUS_FAILURE_I;
 	}
 
-	std::string machine;
-	std::unique_ptr<std::vector<std::string>> characteristics;
+	std::unique_ptr<SectionHeader_t> text;
+	std::unique_ptr<SectionHeader_t> invalid;
 
 	auto status = STATUS_SUCCESS_I;
 
@@ -30,13 +30,20 @@ int main(int argc, char* argv[])
 
 	pe.parse();
 
-	machine = pe.get_machine();
-	characteristics = pe.get_characteristics();
+	text = pe.get_section_header_by_name(".text");
+	invalid = pe.get_section_header_by_name(".fake");
 
-	std::cout << machine << '\n';
-	for (auto& c : *characteristics.get())
+	if (text)
 	{
-		std::cout << c << '\n';
+		std::cout << ".text is valid\n";
+		std::cout << text.get()->PointerToRawData << '\n';
+		std::cout << text.get()->VirtualSize << '\n';
+		std::cout << text.get()->SizeOfRawData << '\n';
+	}
+
+	if (invalid)
+	{
+		std::cout << ".fake is valid\n";
 	}
 
 	return status;
