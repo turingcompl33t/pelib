@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29613.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PeLib", "PeLib\PeLib.vcxproj", "{A222CA86-C689-4867-A0C3-8216BEC1B6EC}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PeLibClient", "PeLibClient\PeLibClient.vcxproj", "{D0780AB0-B96D-4161-ABA5-F713F932575D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A222CA86-C689-4867-A0C3-8216BEC1B6EC}.Debug|x64.ActiveCfg = Debug|x64
+		{A222CA86-C689-4867-A0C3-8216BEC1B6EC}.Debug|x64.Build.0 = Debug|x64
+		{A222CA86-C689-4867-A0C3-8216BEC1B6EC}.Release|x64.ActiveCfg = Release|x64
+		{A222CA86-C689-4867-A0C3-8216BEC1B6EC}.Release|x64.Build.0 = Release|x64
+		{D0780AB0-B96D-4161-ABA5-F713F932575D}.Debug|x64.ActiveCfg = Debug|x64
+		{D0780AB0-B96D-4161-ABA5-F713F932575D}.Debug|x64.Build.0 = Debug|x64
+		{D0780AB0-B96D-4161-ABA5-F713F932575D}.Release|x64.ActiveCfg = Release|x64
+		{D0780AB0-B96D-4161-ABA5-F713F932575D}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {9E29C190-DFFF-4628-8608-61C0DF3862E0}
+	EndGlobalSection
+EndGlobal
