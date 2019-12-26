@@ -21,29 +21,18 @@ int main(int argc, char* argv[])
 		return STATUS_FAILURE_I;
 	}
 
-	std::unique_ptr<SectionHeader_t> text;
-	std::unique_ptr<SectionHeader_t> invalid;
-
 	auto status = STATUS_SUCCESS_I;
 
-	PeParser pe{ std::string{argv[1]} };
+	PeLib::PeParser pe{ std::string{argv[1]} };
 
 	pe.parse();
 
-	text = pe.get_section_header_by_name(".text");
-	invalid = pe.get_section_header_by_name(".fake");
+	auto sections = pe.get_sections();
 
-	if (text)
+	for (auto& s : *sections.get())
 	{
-		std::cout << ".text is valid\n";
-		std::cout << text.get()->PointerToRawData << '\n';
-		std::cout << text.get()->VirtualSize << '\n';
-		std::cout << text.get()->SizeOfRawData << '\n';
-	}
-
-	if (invalid)
-	{
-		std::cout << ".fake is valid\n";
+		std::cout << "Section Name: " << s.Name << '\n';
+		std::cout << "-> Section Size: " << s.ContentSize << '\n';
 	}
 
 	return status;

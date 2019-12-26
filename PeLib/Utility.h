@@ -13,9 +13,13 @@
 	#define DbgPrint(x)
 #endif
 
-inline void push_if_flag_set(
-	std::unique_ptr<std::vector<std::string>>& vec,
-	unsigned short flags,
-	unsigned short mask,
-	std::string str
-);
+namespace PeLib {
+
+	inline void push_if_flag_set(
+		std::unique_ptr<std::vector<std::string>>& vec,
+		unsigned short flags,
+		unsigned short mask,
+		std::string str
+	);
+}
+
