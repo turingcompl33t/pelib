@@ -454,6 +454,26 @@ namespace PeLib {
 		}
 	}
 
+	// parse_imports
+	// Parse image imports.
+	// 
+	// Arguments:
+	//	buffer - image file buffer
+	void PeParser::parse_imports(FileBuffer& buffer)
+	{
+		// TODO
+	}
+
+	// parse_exports
+	// Parse image exports.
+	// 
+	// Arguments:
+	//	buffer - image file buffer
+	void parse_exports(FileBuffer& buffer)
+	{
+		// TODO
+	}
+
 	/* ----------------------------------------------------------------------------
 	 *	Exported Utility Functions
 	 */

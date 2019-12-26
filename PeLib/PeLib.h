@@ -55,6 +55,8 @@ namespace PeLib {
 		void parse_optional_header64(FileBuffer& buffer);
 		void parse_data_directory(FileBuffer& buffer);
 		void parse_sections(FileBuffer& buffer);
+		void parse_imports(FileBuffer& buffer);
+		void parse_exports(FileBuffer& buffer);
 
 		// data members
 	private:
