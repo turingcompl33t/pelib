@@ -1,5 +1,5 @@
 // Utility.h
-// Internal header for private function declarations.
+// Exported utility function definitions.
 
 #pragma once
 
@@ -7,19 +7,17 @@
 #include <vector>
 #include <string>
 
-#ifdef _DEBUG
-	#define DbgPrint(x) printf("[PeLib] " x); puts("")
-#else
-	#define DbgPrint(x)
-#endif
+#include "Environment.h"
 
 namespace PeLib {
 
-	inline void push_if_flag_set(
-		std::unique_ptr<std::vector<std::string>>& vec,
-		unsigned short flags,
-		unsigned short mask,
-		std::string str
-	);
+	PELIB_API std::string                                
+	decode_machine(unsigned short machine);
+
+	PELIB_API std::unique_ptr<std::vector<std::string>>  
+	decode_characteristics(unsigned short flags);
+
+	PELIB_API std::unique_ptr<std::vector<std::string>> 
+	decode_section_characteristics(unsigned long flags);
 }
 

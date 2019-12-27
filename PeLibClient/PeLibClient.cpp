@@ -31,8 +31,10 @@ int main(int argc, char* argv[])
 
 	for (auto& s : *sections.get())
 	{
-		std::cout << "Section Name: " << s.Name << '\n';
-		std::cout << "-> Section Size: " << s.ContentSize << '\n';
+		std::cout << "Section Name:      " << s.Name << '\n';
+		std::cout << "-> Section Size:   " << s.ContentSize << '\n';
+		std::cout << "-> Section Offset: " << s.Header.PointerToRawData << '\n';
+		std::cout << "-> Virtual Size:   " << s.Header.VirtualSize << '\n';
 	}
 
 	return status;

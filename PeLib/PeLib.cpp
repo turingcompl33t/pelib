@@ -7,8 +7,8 @@
 #include <string>
 #include <iostream>
 
-#include "Utility.h"
 #include "PeLib.h"
+#include "Internal.h"
 
 namespace PeLib {
 
