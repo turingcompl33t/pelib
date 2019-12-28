@@ -26,15 +26,11 @@ int main(int argc, char* argv[])
 	PeLib::PeParser pe{ std::string{argv[1]} };
 
 	pe.parse();
+	auto imports = pe.get_imports_from_source("advapi32.dll");
 
-	auto sections = pe.get_sections();
-
-	for (auto& s : *sections.get())
+	for (auto& i : *imports.get())
 	{
-		std::cout << "Section Name:      " << s.Name << '\n';
-		std::cout << "-> Section Size:   " << s.ContentSize << '\n';
-		std::cout << "-> Section Offset: " << s.Header.PointerToRawData << '\n';
-		std::cout << "-> Virtual Size:   " << s.Header.VirtualSize << '\n';
+		std::cout << i.Name << '\n';
 	}
 
 	return status;

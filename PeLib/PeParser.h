@@ -36,6 +36,9 @@ namespace PeLib {
 		PELIB_API std::unique_ptr<Section>                    get_section_by_name(const std::string& name);
 		PELIB_API std::unique_ptr<SectionHeader>              get_section_header_by_name(const std::string& name);
 
+		PELIB_API std::unique_ptr<std::vector<Import>>        get_imports();
+		PELIB_API std::unique_ptr<std::vector<Import>>        get_imports_from_source(std::string name);
+
 		// private (internal) methods
 	private:
 		bool is_valid_pe(FileBuffer& buffer);
@@ -51,6 +54,8 @@ namespace PeLib {
 		void parse_imports(FileBuffer& buffer);
 		void parse_exports(FileBuffer& buffer);
 
+		unsigned long rva_to_offset(unsigned long va);
+
 		// data members
 	private:
 		std::string file_path;
@@ -63,6 +68,7 @@ namespace PeLib {
 		std::array<DataDirectoryEntry, IMAGE_NUMBEROF_DIRECTORY_ENTRIES> DataDirectory;
 
 		std::vector<Section> Sections;
+		std::vector<Import>  Imports;
 	};
 
 

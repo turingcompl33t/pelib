@@ -22,9 +22,9 @@ namespace PeLib {
 	{
 		DbgPrint("PeParser initialized");
 
-		DosHeader = { 0 };
-		NtHeaders = { 0 };
-		FileHeader = { 0 };
+		DosHeader      = { 0 };
+		NtHeaders      = { 0 };
+		FileHeader     = { 0 };
 		OptionalHeader = { 0 };
 	}
 
@@ -101,6 +101,7 @@ namespace PeLib {
 		parse_optional_header(pFileBuffer);
 		parse_data_directory(pFileBuffer);
 		parse_sections(pFileBuffer);
+		parse_imports(pFileBuffer);
 
 	CLEANUP:
 		switch (rollback)
@@ -192,6 +193,57 @@ namespace PeLib {
 		}
 
 		return nullptr;
+	}
+
+	// get_imports
+	// Query all imports for image.
+	//
+	// Returns a vector of Import objects.
+	PELIB_API std::unique_ptr<std::vector<Import>> 
+	PeParser::get_imports()
+	{
+		auto imports = std::make_unique<std::vector<Import>>();
+
+		for (auto& i : Imports)
+		{
+			imports->emplace_back(
+				i.Name,
+				i.LibraryName,
+				i.Hint
+			);
+		}
+
+		return imports;
+	}
+
+	// get_imports_from_source
+	// Query image imports from specified source library.
+	//
+	// Arguments:
+	//	name - library name
+	// 
+	// Returns a vector of Import objects.
+	PELIB_API std::unique_ptr<std::vector<Import>> 
+	PeParser::get_imports_from_source(std::string name)
+	{
+		auto imports = std::make_unique<std::vector<Import>>();
+		
+		// normalize user input to uppercase
+		std::transform(name.begin(), name.end(), name.begin(), ::toupper);
+
+		for (auto& i : Imports)
+		{
+			if (i.LibraryName == name)
+			{
+				imports->emplace_back(
+					i.Name,
+					i.LibraryName,
+					i.Hint
+				);
+			}
+		}
+
+		return imports;
 	}
 
 	/* ----------------------------------------------------------------------------
@@ -461,7 +513,41 @@ namespace PeLib {
 	//	buffer - image file buffer
 	void PeParser::parse_imports(FileBuffer& buffer)
 	{
-		// TODO
+		// compute the file offset to import directory
+		auto base = buffer.get() + rva_to_offset(DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress);
+
+		// iterate over IMAGE_IMPORT_DESCRIPTORs
+		// array of structures terminated by null structure
+		for (auto descriptor = reinterpret_cast<PIMAGE_IMPORT_DESCRIPTOR>(base); 
+			descriptor->OriginalFirstThunk != 0; 
+			descriptor++
+			)
+		{
+			// record the library name for later import construction
+			std::string lib_name{ reinterpret_cast<char*>(buffer.get() + rva_to_offset(descriptor->Name)) };
+			// normalize library names to uppercase
+			std::transform(lib_name.begin(), lib_name.end(), lib_name.begin(), ::toupper);
+
+			auto thunk_base = buffer.get() + rva_to_offset(descriptor->OriginalFirstThunk);
+			
+			// iterate over IMAGE_THUNK_DATAs for this import source
+			// array of structures terminated by null structure
+			for (auto thunk = reinterpret_cast<PIMAGE_THUNK_DATA>(thunk_base);
+				thunk->u1.AddressOfData != 0;
+				thunk++
+				)
+			{
+				auto import_by_name = reinterpret_cast<PIMAGE_IMPORT_BY_NAME>(
+					buffer.get() + rva_to_offset(thunk->u1.AddressOfData)
+					);
+
+				Imports.emplace_back(
+					import_by_name->Name,
+					lib_name,
+					import_by_name->Hint
+				);
+			}
+		}
 	}
 
 	// parse_exports
@@ -472,6 +558,28 @@ namespace PeLib {
 	void parse_exports(FileBuffer& buffer)
 	{
 		// TODO
+	}
+
+	// rva_to_offset
+	// Convert relative virtual address (RVA) to raw file offset
+	//
+	// Arguments:
+	//	va - virtual address to convert
+	//
+	// Returns raw file offset for RVA, or 0 if valid section not found.
+	unsigned long PeParser::rva_to_offset(unsigned long va)
+	{
+		for (auto& s : Sections)
+		{
+			if ((va >= s.Header.VirtualAddress) 
+				&& (va < s.Header.VirtualAddress + s.Header.SizeOfRawData))
+			{
+				return s.Header.PointerToRawData + (va - s.Header.VirtualAddress);
+			}
+		}
+
+		// section not found
+		return 0;
 	}
 
 	/* ----------------------------------------------------------------------------

@@ -138,4 +138,20 @@ namespace PeLib {
 			ContentSize{ other.ContentSize }
 		{}
 	};
+
+	struct Import
+	{
+		std::string    Name;
+		std::string    LibraryName;
+		unsigned short Hint;
+
+		Import(
+			const std::string& Name, 
+			const std::string& LibraryName, 
+			const unsigned short Hint)
+			: Name{Name}, 
+			LibraryName{LibraryName}, 
+			Hint{Hint}
+		{}
+	};
 }
